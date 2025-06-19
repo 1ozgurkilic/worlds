@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worlds</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Leaflet CSS dosyası -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Açık Mod Arka Plan */
+            color: #333; /* Açık Mod Metin Rengi */
+            transition: background-color 0.3s ease, color 0.3s ease; /* Yumuşak geçiş */
+        }
+        body.dark-mode {
+            background-color: #1a202c; /* Koyu Mod Arka Plan */
+            color: #e2e8f0; /* Koyu Mod Metin Rengi */
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: #ffffff; /* Açık Mod Kart Arka Plan */
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            margin-bottom: 20px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease; /* Yumuşak geçiş */
+        }
+        body.dark-mode .card {
+            background-color: #2d3748; /* Koyu Mod Kart Arka Plan */
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode .card h2,
+        body.dark-mode .card h3 {
+            color: #edf2f7; /* Koyu Mod Başlık Rengi */
+        }
+        body.dark-mode .card p,
+        body.dark-mode .card span {
+            color: #cbd5e0; /* Koyu Mod Metin Rengi */
+        }
+        body.dark-mode .info.legend {
+            background: #2d3748;
+            color: #e2e8f0;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        body.dark-mode .info.legend h4 {
+            color: #e2e8f0;
+        }
+
+        #mapid {
+            height: 500px; /* Haritanın görüntüleneceği alanın yüksekliği */
+            width: 100%;
+            border-radius: 8px; /* Yuvarlak köşeler */
+            background-color: #e0e0e0; /* Harita yüklenirken arka plan rengi */
+        }
+        /* Responsive düzenleme */
+        @media (max-width: 768px) {
+            #mapid {
+                height: 300px;
+            }
+        }
+        /* Lejant stilizasyonu */
+        .info.legend {
+            background: white;
+            padding: 6px 8px;
+            font-size: 14px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            border-radius: 5px;
+        }
+        .info.legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+            border-radius: 50%; /* Daire şekli için */
+        }
+        /* Custom icon styling for autonomous regions */
+        .custom-autonomous-icon {
+            background-color: #3cb371; /* Medium Sea Green */
+            border-radius: 50%;
+            border: 2px solid #2e8b57; /* Darker green border */
+            opacity: 0.8;
+            transition: opacity 0.2s, transform 0.2s; /* Smooth transition for hover */
+            cursor: pointer;
+        }
+        .custom-autonomous-icon:hover {
+            opacity: 1;
+            transform: scale(1.1); /* Slightly larger on hover */
+        }
+        /* Haber kartı özel stilleri */
+        .news-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 100%; /* Kartların aynı yüksekliği korumasını sağlar */
+        }
+        body.dark-mode .news-card { /* KOYU MOD HABER KART ARKA PLANI BURAYA EKLENDİ */
+            background-color: #3d465a; /* Daha koyu bir ton */
+            border-color: #4a5568; /* Sınır rengini de koyulaştır */
+        }
+        #go-to-top-button {
+            transition: opacity 0.3s ease-in-out;
+        }
+        /* Modal Stilleri */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+        .modal-overlay.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 600px;
+            width: 90%;
+            transform: translateY(-20px);
+            transition: transform 0.3s ease-in-out;
+            position: relative; /* Close button positioning */
+        }
+        body.dark-mode .modal-content {
+            background-color: #2d3748;
+        }
+        body.dark-mode .modal-content h3 {
+            color: #edf2f7;
+        }
+        body.dark-mode .modal-content div {
+            color: #cbd5e0;
+        }
+        .modal-overlay.open .modal-content {
+            transform: translateY(0);
+        }
+        .close-button {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #4a5568;
+        }
+        body.dark-mode .close-button {
+            color: #cbd5e0;
+        }
+
+        /* Dark Mode Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 34px;
+            margin-left: 15px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            -webkit-transition: .4s;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: #2196F3;
+        }
+        input:focus + .slider {
+            box-shadow: 0 0 1px #2196F3;
+        }
+        input:checked + .slider:before {
+            -webkit-transform: translateX(26px);
+            -ms-transform: translateX(26px);
+            transform: translateX(26px);
+        }
+
+        /* Arama Yükleniyor Spinner */
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 8px;
+            display: none; /* Varsayılan olarak gizli */
+        }
+
+        .loading-spinner.active {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Favori düğme stilleri kaldırıldı */
+    </style>
+</head>
+<body class="p-4 sm:p-6 md:p-8">
+    <div class="container">
+        <header class="text-center mb-8 flex flex-col sm:flex-row justify-between items-center">
+            <div class="text-center sm:text-left mb-4 sm:mb-0">
+                <h1 class="text-4xl font-bold mb-2">Dünya Gündemi ve Haber Sayfası</h1>
+                <p class="text-lg">Küresel gelişmeleri interaktif harita ve haberlerle takip edin</p>
+            </div>
+            <!-- Koyu Mod Anahtarı -->
+            <div class="flex items-center">
+                <span class="text-gray-700 dark:text-gray-300 mr-2">Koyu Mod</span>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="dark-mode-toggle">
+                    <span class="slider round"></span>
+                </label>
+            </div>
+        </header>
+
+        <main>
+            <div class="card mb-6">
+                <h2 class="text-2xl font-semibold mb-4">Dünya Haritası</h2>
+                <!-- Harita Arama Çubuğu -->
+                <div class="mb-4 flex flex-col sm:flex-row gap-2 items-center">
+                    <input type="text" id="country-search-input" placeholder="Ülke ara..." class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                    <button id="country-search-button" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Ülke Ara <span id="country-search-spinner" class="loading-spinner"></span></button>
+                    <button id="clear-country-highlight" class="px-4 py-2 bg-red-500 text-white font-semibold rounded-md shadow-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 focus:ring-offset-2">Vurguyu Temizle</button>
+                </div>
+                <!-- Konumumu Göster Butonu -->
+                <div class="mb-4 text-center">
+                    <button id="locate-me-button" class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-md shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
+                        Konumumu Göster <span id="locate-me-spinner" class="loading-spinner"></span>
+                    </button>
+                </div>
+
+                <!-- Haritanın yükleneceği div elementi -->
+                <div id="mapid" class="rounded-lg shadow-inner"></div>
+                <!-- Ülke bilgi kutusu: Arka plan ve metin renkleri hem açık hem koyu mod için düzenlendi -->
+                <div id="country-info-display" class="bg-white p-4 rounded-lg shadow-inner border border-gray-200 text-gray-700 text-sm mt-4 hidden dark:bg-gray-700 dark:text-gray-300 dark:border-gray-600">
+                    <!-- Ülke bilgileri buraya yüklenecek -->
+                </div>
+                <p class="text-sm text-gray-500 mt-4">
+                    Bu harita, Leaflet.js kütüphanesi kullanılarak oluşturulmuştur. Dünya üzerindeki tüm ülkeler mavi tonlarında gösterilmektedir. Herhangi bir ülkeye tıkladığınızda, o ülkenin adını, tahmini nüfusunu ve kıtasını gösteren bir bilgi penceresi açılacaktır. Haritanın sağ üst köşesindeki **katman kontrolü** ile farklı harita görünümleri, ülke, temsili gerilim bölgeleri ve temsili özerk bölgeler katmanlarını açıp kapatabilirsiniz.
+                    <br>
+                    <span class="font-bold text-red-700">Önemli Not:</span> Harita üzerindeki kırmızı daireler, gerçek zamanlı çatışma bölgeleri veya bombalama alanları gibi dinamik verilere dayanmamaktadır. Bunlar, yalnızca ilgili bölgelere dikkat çekmek ve genel gerilimi temsil etmek amacıyla eklenmiş **görsel temsillerdir** ve gerçek bir saldırı bilgisi içermezler. Ülke nüfus ve kıta verileri GeoJSON dosyasından alınmaktadır ve her zaman en güncel veya eksik olmayabilir. Temsili gerilim bölgeleri ve özerk bölgeler de artık tıklanabilirdir.
+                </p>
+            </div>
+
+            <!-- Küresel Gelişmeler Hakkında Bilgi -->
+            <div class="card mb-6">
+                <h2 class="text-2xl font-semibold mb-4">Küresel Gelişmeler Hakkında Bilgi</h2>
+                <p class="leading-relaxed mb-4">
+                    Dünya genelindeki gerilimler ve önemli olaylar, bölgesel çatışmalardan iklim değişikliğinin etkilerine, ekonomik dalgalanmalardan teknolojik devrimlere kadar geniş bir yelpazeyi kapsamaktadır. Bu gelişmeler, küresel ilişkileri, toplumları ve bireysel yaşamları derinden etkilemektedir.
+                </p>
+                <p class="leading-relaxed">
+                    Uluslararası işbirliği, bu karmaşık sorunların üstesinden gelmek ve daha istikrarlı bir gelecek inşa etmek için hayati öneme sahiptir. Harita ve haber akışı aracılığıyla, dünya genelindeki önemli gelişmeleri daha yakından takip edebilirsiniz.
+                </p>
+            </div>
+
+            <!-- Son Haberler Bölümü -->
+            <div class="card">
+                <h2 class="text-2xl font-semibold mb-4">Son Haberler</h2>
+                <div class="mb-4 flex flex-col sm:flex-row gap-2 items-center">
+                    <input type="text" id="news-search-input" placeholder="Haberlerde ara..." class="flex-grow p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                    <button id="news-search-button" class="px-4 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Ara <span id="news-search-spinner" class="loading-spinner"></span></button>
+                    <button id="news-refresh-button" class="px-4 py-2 bg-green-600 text-white font-semibold rounded-md shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">Haberleri Yenile <span id="news-refresh-spinner" class="loading-spinner"></span></button>
+                    <!-- Haber Kategorileri Seçimi -->
+                    <select id="news-category-select" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                        <option value="all">Tüm Kategoriler</option>
+                        <option value="politics">Politika</option>
+                        <option value="economy">Ekonomi</option>
+                        <option value="technology">Teknoloji</option>
+                        <option value="environment">Çevre</option>
+                        <option value="science">Bilim</option>
+                        <option value="social">Sosyal</option>
+                        <option value="other">Diğer</option>
+                    </select>
+                    <!-- Yeni eklenen: Haberler için Tarih Aralığı Seçimi -->
+                    <select id="news-date-range-select" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                        <option value="all">Tüm Haberler</option>
+                        <option value="24h">Son 24 Saat</option>
+                        <option value="7d">Son 7 Gün</option>
+                        <option value="30d">Son 30 Gün</option>
+                    </select>
+                    <select id="news-sort-select" class="p-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700 dark:text-gray-200">
+                        <option value="newest">En Yeni</option>
+                        <option value="oldest">En Eski</option>
+                    </select>
+                </div>
+                <!-- Yükleniyor/Sonuç Yok mesajı, haber kapsayıcısının dışında -->
+                <p class="text-gray-500 col-span-full text-center" id="news-loading-message">Haberler yükleniyor...</p>
+                <div id="news-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Haberler buraya dinamik olarak yüklenecek -->
+                </div>
+                <!-- Daha Fazla Haber Yükle butonu için yeni yer -->
+                <div id="load-more-button-wrapper" class="hidden text-center mt-4">
+                    <button id="load-more-news-button" class="px-6 py-3 bg-gray-200 text-gray-800 font-semibold rounded-md shadow-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500">Daha Fazla Haber Yükle</button>
+                </div>
+                <p class="text-sm text-gray-500 mt-4 text-center">
+                    <span class="font-bold">Not:</span> Bu haber akışı, gerçek zamanlı bir API entegrasyonu yerine simüle edilmiş verilerle çalışmaktadır. "Haberleri Yenile" düğmesi, verinin nasıl güncelleneceğine dair temsili bir gösterim sunar. Gerçek zamanlı haber akışları genellikle bir arka uç sunucusu veya WebSockets gibi daha karmaşık teknolojiler gerektirir.
+                </p>
+            </div>
+            <!-- Son Haberler Bölümü Sonu -->
+
+            <!-- Yardım ve Hakkında Bölümü -->
+            <div class="card mt-6">
+                <h2 class="text-2xl font-semibold mb-4">Yardım ve Hakkında</h2>
+                <p class="leading-relaxed mb-4">
+                    Bu sayfa, dünya genelindeki önemli gelişmeleri ve haberleri interaktif bir harita ve haber akışı aracılığıyla takip etmenizi sağlar.
+                </p>
+                <h3 class="text-xl font-semibold mb-2">Harita Nasıl Kullanılır?</h3>
+                <ul class="list-disc list-inside ml-4 mb-4">
+                    <li>Harita üzerindeki ülkelere tıklayarak temel bilgilerini (nüfus, kıta) görebilirsiniz.</li>
+                    <li>"Ülke ara" kutusuna bir ülke adı yazıp "Ülke Ara" butonuna tıklayarak o ülkeyi haritada bulabilir ve detaylı bilgilerini (başkent, para birimi, bayrak vb.) görüntüleyebilirsiniz.</li>
+                    <li>"Vurguyu Temizle" butonu, harita üzerindeki ülke vurgusunu kaldırır ve haritayı başlangıç görünümüne döndürür.</li>
+                    <li>Sağ üstteki katman kontrolü ile harita görünümlerini ve temsili bölgeleri açıp kapatabilirsiniz.</li>
+                    <li>"Konumumu Göster" butonu ile mevcut konumunuzu harita üzerinde görebilirsiniz.</li>
+                </ul>
+                <h3 class="text-xl font-semibold mb-2">Haberler Nasıl Kullanılır?</h3>
+                <ul class="list-disc list-inside ml-4 mb-4">
+                    <li>Haberler bölümünde en güncel simüle edilmiş haberleri bulabilirsiniz.</li>
+                    <li>"Haberlerde ara" kutusuna anahtar kelimeler girerek haberleri filtreleyebilirsiniz.</li>
+                    <li>"Haberleri Yenile" butonuyla haber listesini güncelleyebilir, "Daha Fazla Haber Yükle" butonuyla ek haberleri görebilirsiniz.</li>
+                    <li>Sıralama seçeneği ile haberleri "En Yeni" veya "En Eski" olarak sıralayabilirsiniz.</li>
+                    <li>"Kategori" seçimi ile haberleri belirli başlıklara göre filtreleyebilirsiniz.</li>
+                    <li>Haberleri "Son 24 Saat", "Son 7 Gün" veya "Son 30 Gün" gibi tarih aralıklarına göre filtreleyebilirsiniz.</li>
+                    <li>Her haber kartındaki "Özetle" butonuna tıklayarak o haberin kısa bir özetini görebilirsiniz (simüle edilmiş LLM yanıtı).</li>
+                </ul>
+                <p class="leading-relaxed mt-4">
+                    Bu uygulama, sadece bir demonstrasyon amaçlıdır ve gerçek zamanlı veriler veya kritik güvenlik bilgileri sağlamaz. Verilerin tamamı simüle edilmiştir.
+                </p>
+            </div>
+            <!-- Yardım ve Hakkında Bölümü Sonu -->
+
+        </main>
+
+        <footer class="text-center mt-8 text-gray-500 text-sm">
+            <p>&copy; 2025 Küresel Gelişmeler Takip Sistemi. Tüm hakları saklıdır.</p>
+        </footer>
+    </div>
+
+    <!-- En Üste Çık Butonu -->
+    <button id="go-to-top-button" class="fixed bottom-4 right-4 bg-blue-500 text-white p-3 rounded-full shadow-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 hidden z-50">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+        </svg>
+    </button>
+
+    <!-- Haber Özeti Modal'ı -->
+    <div id="summary-modal-overlay" class="modal-overlay">
+        <div class="modal-content relative">
+            <button class="close-button" id="close-summary-modal">&times;</button>
+            <h3 class="text-2xl font-semibold mb-4">Haber Özeti ✨</h3>
+            <div id="summary-content" class="leading-relaxed">
+                <!-- Özet buraya yüklenecek -->
+            </div>
+            <div id="summary-loading" class="text-center mt-4 hidden">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto dark:border-gray-100"></div>
+                <p class="mt-2">Özet oluşturuluyor...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Genel Mesaj Modal'ı -->
+    <div id="message-modal-overlay" class="modal-overlay">
+        <div class="modal-content relative">
+            <button class="close-button" id="close-message-modal">&times;</button>
+            <h3 id="message-modal-title" class="text-2xl font-semibold mb-4 text-gray-800 dark:text-gray-100">Başlık</h3>
+            <div id="message-modal-content" class="leading-relaxed text-gray-700 dark:text-gray-300">
+                <!-- Mesaj içeriği buraya yüklenecek -->
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Leaflet JavaScript dosyası -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+    <!-- Esri Leaflet Plugin for Esri basemaps -->
+    <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js" defer></script>
+    <script src="https://unpkg.com/esri-leaflet-vector@4.2.3/dist/esri-leaflet-vector.js" defer></script>
+
+    <script type="module">
+        let map;
+        let countriesGeoJsonLayer; 
+        let highlightedCountryLayer = null; 
+        let countryMarker = null; 
+        let userLocationMarker = null; // Kullanıcı konum marker'ı
+
+        // Firebase değişkenleri (Canvas ortamı tarafından sağlanır)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        // Hata düzeltildi: initialAuthToken kendi kendine referans vermiyordu.
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        // Firebase modüllerini import et
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        // Firestore'dan sadece gerekli modüller import edildi
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Initialization
+        let app;
+        let db;
+        let auth;
+        let userId;
+        let isFirebaseReady = false; 
+        
+        // Genel Mesaj Modal elemanları
+        const messageModalOverlay = document.getElementById('message-modal-overlay');
+        const messageModalTitle = document.getElementById('message-modal-title');
+        const messageModalContent = document.getElementById('message-modal-content');
+        const closeMessageModalButton = document.getElementById('close-message-modal');
+
+        // Genel Mesaj Modal'ı açma fonksiyonu
+        function showMessage(title, message) {
+            messageModalTitle.textContent = title;
+            messageModalContent.innerHTML = message;
+            messageModalOverlay.classList.add('open');
+        }
+
+        // Genel Mesaj Modal'ı kapatma fonksiyonu
+        function closeMessageModal() {
+            messageModalOverlay.classList.remove('open');
+        }
+
+        // Genel Mesaj Modal'ı kapatma düğmesine ve overlay'e tıklama olayları
+        closeMessageModalButton.addEventListener('click', closeMessageModal);
+        messageModalOverlay.addEventListener('click', (event) => {
+            if (event.target === messageModalOverlay) {
+                closeMessageModal();
+            }
+        });
+
+
+        // Firebase'i başlatma fonksiyonu
+        async function initializeFirebase() {
+            try {
+                app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log("Firebase user authenticated with ID:", userId);
+                    } else {
+                        userId = crypto.randomUUID(); 
+                        console.log("Firebase user unauthenticated or anonymous. Using generated ID:", userId);
+                    }
+                    isFirebaseReady = true;
+                    // Firebase hazır olduğunda son aramayı yüklemeyi deneyin
+                    loadLastSearch();
+                });
+            } catch (error) {
+                console.error("Error initializing Firebase or authenticating:", error);
+                showMessage('Hata', 'Firebase başlatılırken veya oturum açılırken bir sorun oluştu: ' + error.message);
+            }
+        }
+
+        // Son aranan ülkeyi Firestore'a kaydetme fonksiyonu
+        async function saveLastSearch(countryName) {
+            if (!isFirebaseReady || !userId || !db) {
+                console.warn("Firebase veya kullanıcı hazır değil. Son arama kaydedilemedi.");
+                return;
+            }
+            try {
+                const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/app_data`, 'lastSearch');
+                await setDoc(userDocRef, {
+                    country: countryName,
+                    timestamp: new Date()
+                }, { merge: true });
+                console.log("Son arama kaydedildi:", countryName);
+            } catch (error) {
+                console.error("Son arama Firestore'a kaydedilirken hata:", error);
+            }
+        }
+
+        // Son aranan ülkeyi Firestore'dan yükleme fonksiyonu
+        async function loadLastSearch() {
+            if (!isFirebaseReady || !userId || !db) {
+                console.warn("Firebase veya kullanıcı hazır değil. Son arama yüklenemedi.");
+                return;
+            }
+            try {
+                const userDocRef = doc(db, `artifacts/${appId}/users/${userId}/app_data`, 'lastSearch');
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    document.getElementById('country-search-input').value = data.country;
+                    searchCountryOnMap(data.country); 
+                    console.log("Son arama yüklendi:", data.country);
+                } else {
+                    console.log("Bu kullanıcı için önceki arama bulunamadı.");
+                }
+            } catch (error) {
+                console.error("Son arama Firestore'dan yüklenirken hata:", error);
+            }
+        }
+
+        // Harita varsayılan stili
+        const defaultCountryStyle = {
+            color: '#000',      
+            weight: 0.5,        
+            fillColor: '#4a90e2', 
+            fillOpacity: 0.3    
+        };
+
+        // Vurgulama stili
+        const highlightStyle = {
+            color: '#ff7800',   
+            weight: 3,          
+            fillColor: '#fe9929', 
+            fillOpacity: 0.7    
+        };
+
+        // Simüle edilmiş tüm haber verileri (kategori ve ilgili ülke eklendi)
+        const allAvailableNews = [
+            {
+                title: "Küresel İklim Değişikliği Raporu Endişeleri Artırıyor",
+                snippet: "Yeni bir rapor, küresel sıcaklık artışının beklenenden hızlı olduğunu ve acil eylem gerektirdiğini ortaya koydu.",
+                url: "https://example.com/iklim-raporu",
+                source_title: "Çevre Haberleri",
+                publication_time: "5 saat önce",
+                timestamp: new Date('2025-06-19T11:00:00Z').getTime(),
+                category: "environment",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Yapay Zeka Devrimi İş Piyasalarını Yeniden Şekillendiriyor",
+                snippet: "Otomasyon ve yapay zeka teknolojilerindeki hızlı ilerleme, küresel iş gücünde büyük değişimlere yol açıyor.",
+                url: "https://example.com/yapay-zeka-is-piyasasi",
+                source_title: "Teknoloji Gündemi",
+                publication_time: "8 saat önce",
+                timestamp: new Date('2025-06-19T08:00:00Z').getTime(),
+                category: "technology",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Küresel Ekonomide Enflasyon Baskısı Devam Ediyor",
+                snippet: "Merkez bankalarının sıkılaştırma politikalarına rağmen, gıda ve enerji fiyatlarındaki artış enflasyonu yüksek tutuyor.",
+                url: "https://example.com/ekonomi-enflasyon",
+                source_title: "Ekonomi Bülteni",
+                publication_time: "10 saat önce",
+                timestamp: new Date('2025-06-19T06:00:00Z').getTime(),
+                category: "economy",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Afrika Boynuzu'nda Kuraklık ve Gıda Krizi Derinleşiyor",
+                snippet: "Milyonlarca insanı etkileyen şiddetli kuraklık, bölgede insani yardıma olan ihtiyacı artırıyor.",
+                url: "https://example.com/afrika-kuraklik",
+                source_title: "İnsani Yardım Ajansı",
+                publication_time: "1 gün önce",
+                timestamp: new Date('2025-06-18T14:00:00Z').getTime(),
+                category: "social",
+                relatedCountries: ["Somali", "Etiyopya", "Kenya"] 
+            },
+            {
+                title: "Uzay Turizmi Yeni Bir Döneme Giriyor: Ticari Uçuşlar Başladı",
+                snippet: "Özel şirketlerin geliştirdiği uzay araçlarıyla ticari uzay turizmi seferleri, yeni bir sektörün doğuşuna işaret ediyor.",
+                url: "https://example.com/uzay-turizmi",
+                source_title: "Bilim ve Teknoloji",
+                publication_time: "1 gün önce",
+                timestamp: new Date('2025-06-18T10:00:00Z').getTime(),
+                category: "science",
+                relatedCountries: ["ABD"] 
+            },
+            {
+                title: "Avrupa'da Enerji Krizi ve Tedarik Güvenliği Tartışmaları",
+                snippet: "Kıtadaki enerji arz güvenliği, uluslararası ilişkilerde önemli bir gündem maddesi olmaya devam ediyor.",
+                url: "https://example.com/avrupa-enerji",
+                source_title: "Uluslararası Politika",
+                publication_time: "2 gün önce",
+                timestamp: new Date('2025-06-17T16:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["Almanya", "Fransa", "Rusya", "Ukrayna"]
+            },
+            {
+                title: "Latin Amerika Ülkelerinde Siyasi İstikrarsızlık",
+                snippet: "Birden fazla Latin Amerika ülkesinde yaşanan siyasi çalkantılar, bölgenin geleceği hakkında soruları artırıyor.",
+                url: "https://example.com/latin-amerika-siyaset",
+                source_title: "Dünya Gündemi",
+                publication_time: "2 gün önce",
+                timestamp: new Date('2025-06-17T12:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["Brezilya", "Arjantin", "Şili", "Venezuela"]
+            },
+            {
+                title: "Pasifik Adaları Deniz Seviyesi Yükselmesi Tehdidi Altında",
+                snippet: "Küresel ısınmanın etkisiyle deniz seviyelerindeki yükseliş, Pasifik'teki küçük ada devletleri için varoluşsal bir tehdit oluşturuyor.",
+                url: "https://example.com/pasifik-deniz-seviyesi",
+                source_title: "İklim Haberleri",
+                publication_time: "3 gün önce",
+                timestamp: new Date('2025-06-16T09:00:00Z').getTime(),
+                category: "environment",
+                relatedCountries: ["Fiji", "Tuvalu", "Maldivler"]
+            },
+            {
+                title: "Küresel Siber Saldırılarda Artış: Şirketler Alarmda",
+                snippet: "Fidye yazılımı ve veri hırsızlığı gibi siber tehditler, dünya genelindeki şirketler ve devletler için büyük bir güvenlik riski oluşturuyor.",
+                url: "https://example.com/siber-saldiri-artisi",
+                source_title: "Siber Güvenlik Dergisi",
+                publication_time: "3 gün önce",
+                timestamp: new Date('2025-06-16T08:00:00Z').getTime(),
+                category: "technology",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Asya'da Artan Jeopolitik Gerilimler",
+                snippet: "Bölgedeki büyük güçler arasındaki rekabet, Asya'da yeni bir jeopolitik gerilim döneminin sinyallerini veriyor.",
+                url: "https://example.com/asya-jeopolitik",
+                source_title: "Jeopolitik Analiz",
+                publication_time: "4 gün önce",
+                timestamp: new Date('2025-06-15T15:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["Çin", "Hindistan", "Japonya", "Kore"]
+            },
+            {
+                title: "Gelişmekte Olan Ülkelerde Borç Krizi Endişeleri",
+                snippet: "Pandemi sonrası ekonomik toparlanma zorlukları, birçok gelişmekte olan ülkenin borç yükünü artırıyor.",
+                url: "https://example.com/borc-krizi-gelismekte-olan",
+                source_title: "Uluslararası Finans",
+                publication_time: "4 gün önce",
+                timestamp: new Date('2025-06-15T11:00:00Z').getTime(),
+                category: "economy",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Kripto Para Piyasalarında Dalgalanma Devam Ediyor",
+                snippet: "Bitcoin ve diğer kripto para birimlerindeki fiyat hareketliliği, yatırımcılar arasında belirsizliği sürdürüyor.",
+                url: "https://example.com/kripto-para-dalgalanma",
+                source_title: "Kripto Haber",
+                publication_time: "5 gün önce",
+                timestamp: new Date('2025-06-14T14:00:00Z').getTime(),
+                category: "economy",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Büyük Teknoloji Şirketlerine Yönelik Rekabet Davaları",
+                snippet: "Dünya genelindeki düzenleyici kurumlar, büyük teknoloji şirketlerinin pazar hakimiyetini sorguluyor ve antitröst davaları açılıyor.",
+                url: "https://example.com/teknoloji-rekabet",
+                source_title: "Hukuk ve Teknoloji",
+                publication_time: "5 gün önce",
+                timestamp: new Date('2025-06-14T10:00:00Z').getTime(),
+                category: "technology",
+                relatedCountries: ["ABD", "AB"]
+            },
+            {
+                title: "Pandemi Sonrası Seyahat Sektöründe Toparlanma",
+                snippet: "Aşılamanın yaygınlaşması ve seyahat kısıtlamalarının hafifletilmesiyle turizm sektörü yeniden canlanıyor.",
+                url: "https://example.com/seyahat-toparlanma",
+                source_title: "Turizm Güncel",
+                publication_time: "6 gün önce",
+                timestamp: new Date('2025-06-13T16:00:00Z').getTime(),
+                category: "social",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Uluslararası Göç Krizi: Yeni Rotalar ve Politikalar",
+                snippet: "Dünya genelinde artan göç hareketleri, ülkeler arasında yeni politikaların ve işbirliklerinin gerekliliğini ortaya koyuyor.",
+                url: "https://example.com/goc-krizi",
+                source_title: "Göç Araştırmaları",
+                publication_time: "6 gün önce",
+                timestamp: new Date('2025-06-13T13:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["Suriye", "Türkiye", "Almanya", "Meksika", "ABD"]
+            },
+            {
+                title: "Yenilenebilir Enerji Yatırımlarında Büyük Artış",
+                snippet: "İklim hedeflerine ulaşma çabaları, güneş ve rüzgar enerjisi gibi yenilenebilir kaynaklara yapılan yatırımları hızlandırıyor.",
+                url: "https://example.com/yenilenebilir-enerji",
+                source_title: "Enerji Haberleri",
+                publication_time: "7 gün önce",
+                timestamp: new Date('2025-06-12T10:00:00Z').getTime(),
+                category: "environment",
+                relatedCountries: ["Çin", "ABD", "Almanya"]
+            },
+            {
+                title: "Demokrasilerde Popülizm ve Aşırıcılık Yükseliyor",
+                snippet: "Dünya genelindeki birçok demokratik ülkede popülist hareketler ve aşırı sağ/sol ideolojiler güç kazanıyor.",
+                url: "https://example.com/populizm-yukselisi",
+                source_title: "Siyasi Analiz Merkezi",
+                publication_time: "7 gün önce",
+                timestamp: new Date('2025-06-12T08:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["ABD", "İngiltere", "Fransa", "Macaristan"]
+            },
+            {
+                title: "Yeni Nesil Uzay Teleskopları Evreni Keşfediyor",
+                snippet: "James Webb Uzay Teleskobu ve benzeri yeni nesil teleskoplar, evrenin derinliklerinden şaşırtıcı görüntüler sunuyor.",
+                url: "https://example.com/uzay-teleskobu",
+                source_title: "Astronomi Haberleri",
+                publication_time: "8 gün önce",
+                timestamp: new Date('2025-06-11T17:00:00Z').getTime(),
+                category: "science",
+                relatedCountries: ["ABD", "Avrupa Uzay Ajansı"]
+            },
+            {
+                title: "Küresel Tedarik Zincirlerinde Devam Eden Aksaklıklar",
+                snippet: "Pandemi ve jeopolitik gerilimler, küresel tedarik zincirlerinde aksaklıklara neden olmaya devam ediyor, bu da fiyatları etkiliyor.",
+                url: "https://example.com/tedarik-zinciri-aksakliklari",
+                source_title: "Lojistik Haberleri",
+                publication_time: "8 gün önce",
+                timestamp: new Date('2025-06-11T13:00:00Z').getTime(),
+                category: "economy",
+                relatedCountries: ["Çin"] 
+            },
+            {
+                title: "Dünya Sağlık Örgütü'nden Yeni Salgın Uyarısı",
+                snippet: "DSÖ, yeni bir virüs tehdidi hakkında uyarılarda bulundu ve ülkeleri hazırlıklı olmaya çağırdı.",
+                url: "https://example.com/yeni-salgin-uyarisi",
+                source_title: "Sağlık Haberleri",
+                publication_time: "9 gün önce",
+                timestamp: new Date('2025-06-10T11:00:00Z').getTime(),
+                category: "social",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Metaverse ve Web3 Teknolojilerinin Geleceği",
+                snippet: "Sanal gerçeklik ve blok zinciri tabanlı Web3 projeleri, internetin geleceğini şekillendirme potansiyeli taşıyor.",
+                url: "https://example.com/metaverse-web3",
+                source_title: "Dijital Trendler",
+                publication_time: "9 gün önce",
+                timestamp: new Date('2025-06-10T09:00:00Z').getTime(),
+                category: "technology",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Küresel Gıda Fiyatları Rekor Seviyelerde",
+                snippet: "Kuraklık, çatışmalar ve enerji maliyetleri, dünya genelinde gıda fiyatlarını rekor seviyelere çıkardı.",
+                url: "https://example.com/gida-fiyatlari-rekor",
+                source_title: "Tarım ve Gıda",
+                publication_time: "10 gün önce",
+                timestamp: new Date('2025-06-09T18:00:00Z').getTime(),
+                category: "economy",
+                relatedCountries: [] // Global
+            },
+            {
+                title: "Uluslararası Nükleer Silahlanma Yarışı Endişeleri",
+                snippet: "Bazı ülkeler arasında nükleer kapasite artırma çabaları, küresel güvenlik için yeni tehditler oluşturuyor.",
+                url: "https://example.com/nukleer-silahlanma",
+                source_title: "Güvenlik Politikaları",
+                publication_time: "10 gün önce",
+                timestamp: new Date('2025-06-09T14:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["Kuzey Kore", "İran"]
+            },
+            {
+                title: "Kültürel Miras Alanları İklim Değişikliği Tehdidi Altında",
+                snippet: "Dünya genelindeki birçok tarihi ve kültürel miras alanı, yükselen deniz seviyeleri ve aşırı hava olayları nedeniyle risk altında.",
+                url: "https://example.com/kulturel-miras-iklim",
+                source_title: "Sanat ve Kültür",
+                publication_time: "11 gün önce",
+                timestamp: new Date('2025-06-08T12:00:00Z').getTime(),
+                category: "environment",
+                relatedCountries: ["İtalya", "Yunanistan", "Mısır"]
+            },
+            // Türkiye ile ilgili ek haberler
+            {
+                title: "Türkiye'de Ekonomik Gelişmeler ve Enflasyonla Mücadele",
+                snippet: "Türkiye ekonomisindeki son gelişmeler, hükümetin enflasyonla mücadele politikaları ve büyüme beklentilerini içeriyor.",
+                url: "https://example.com/turkiye-ekonomi-guncel",
+                source_title: "Ekonomi Ajansı",
+                publication_time: "2 saat önce",
+                timestamp: new Date('2025-06-19T14:00:00Z').getTime(),
+                category: "economy",
+                relatedCountries: ["Türkiye"]
+            },
+            {
+                title: "Türkiye'de Yeni Turizm Sezonu Başarılı Başlangıç Yaptı",
+                snippet: "Akdeniz ve Ege kıyılarında oteller doluluk oranlarına ulaşırken, turizm sektörü için umut verici bir sezon başladı.",
+                url: "https://example.com/turkiye-turizm-sezonu",
+                source_title: "Turizm Haberleri",
+                publication_time: "1 gün önce",
+                timestamp: new Date('2025-06-18T16:00:00Z').getTime(),
+                category: "social",
+                relatedCountries: ["Türkiye"]
+            },
+            {
+                title: "İsrail-Filistin Gerilimi Tırmanıyor",
+                snippet: "Bölgede artan çatışmalar ve karşılıklı saldırılar, uluslararası endişeleri artırıyor.",
+                url: "https://example.com/israil-filistin-gerilim",
+                source_title: "Ortadoğu Analiz",
+                publication_time: "3 saat önce",
+                timestamp: new Date('2025-06-19T13:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["İsrail", "Filistin"]
+            },
+            {
+                title: "İran Nükleer Programında Son Gelişmeler",
+                snippet: "Uluslararası Atom Enerjisi Ajansı, İran'ın nükleer faaliyetleriyle ilgili yeni bir rapor yayımladı.",
+                url: "https://example.com/iran-nukleer-program",
+                source_title: "Uluslararası Haberler",
+                publication_time: "6 saat önce",
+                timestamp: new Date('2025-06-19T10:00:00Z').getTime(),
+                category: "politics",
+                relatedCountries: ["İran"]
+            }
+        ];
+
+
+        let displayedNewsData = []; 
+        let currentFilteredAndSortedNews = []; 
+        const newsBatchSize = 6; 
+        let newsPageIndex = 0; 
+        let currentCountryNewsFilter = null; // Ülke odaklı haber filtresi için global değişken
+
+        // Haberleri yükleme fonksiyonu
+        async function displayNews(query = '', sortOrder = document.getElementById('news-sort-select').value, category = document.getElementById('news-category-select').value, dateRange = document.getElementById('news-date-range-select').value, countryFilter = null, append = false) {
+            const newsContainer = document.getElementById('news-container');
+            const loadingMessage = document.getElementById('news-loading-message');
+            const loadMoreButtonWrapper = document.getElementById('load-more-button-wrapper');
+            const loadMoreButton = document.getElementById('load-more-news-button');
+            const newsSearchButton = document.getElementById('news-search-button');
+            const newsRefreshButton = document.getElementById('news-refresh-button');
+            const newsSearchSpinner = document.getElementById('news-search-spinner');
+            const newsRefreshSpinner = document.getElementById('news-refresh-spinner');
+            const newsCategorySelect = document.getElementById('news-category-select');
+            const newsDateRangeSelect = document.getElementById('news-date-range-select');
+            const newsSortSelect = document.getElementById('news-sort-select');
+
+            loadingMessage.textContent = 'Haberler yükleniyor...'; 
+            loadingMessage.classList.remove('hidden'); 
+
+            // Haber butonlarını ve spinner'ları kontrol et
+            newsSearchButton.disabled = true;
+            newsRefreshButton.disabled = true;
+            loadMoreButton.disabled = true; 
+            newsCategorySelect.disabled = true; 
+            newsDateRangeSelect.disabled = true;
+            newsSortSelect.disabled = true;
+
+            if (!append) { 
+                newsSearchSpinner.classList.add('active'); 
+                newsRefreshSpinner.classList.add('active');
+            }
+
+
+            await new Promise(resolve => setTimeout(resolve, 500)); 
+
+            const lowerCaseQuery = query.toLowerCase();
+            const now = Date.now();
+
+            if (!append) {
+                currentFilteredAndSortedNews = allAvailableNews.filter(newsItem => {
+                    const matchesQuery = newsItem.title.toLowerCase().includes(lowerCaseQuery) ||
+                                         newsItem.snippet.toLowerCase().includes(lowerCaseQuery) ||
+                                         newsItem.source_title.toLowerCase().includes(lowerCaseQuery);
+                    
+                    const matchesCategory = category === 'all' || (newsItem.category && newsItem.category.toLowerCase() === category.toLowerCase());
+
+                    // Tarih Aralığı Filtresi
+                    let matchesDateRange = true;
+                    if (dateRange !== 'all') {
+                        let cutoffTime = 0;
+                        if (dateRange === '24h') {
+                            cutoffTime = now - (24 * 60 * 60 * 1000); // 24 hours ago
+                        } else if (dateRange === '7d') {
+                            cutoffTime = now - (7 * 24 * 60 * 60 * 1000); // 7 days ago
+                        } else if (dateRange === '30d') {
+                            cutoffTime = now - (30 * 24 * 60 * 60 * 1000); // 30 days ago
+                        }
+                        matchesDateRange = newsItem.timestamp >= cutoffTime;
+                    }
+
+                    // Ülke Filtresi
+                    let matchesCountryFilter = true;
+                    if (countryFilter && newsItem.relatedCountries && newsItem.relatedCountries.length > 0) {
+                        matchesCountryFilter = newsItem.relatedCountries.some(rc => rc.toLowerCase() === countryFilter.toLowerCase());
+                    } else if (countryFilter && (!newsItem.relatedCountries || newsItem.relatedCountries.length === 0)) {
+                        // Ülke filtresi aktifse ama haberin ilgili ülkesi yoksa, bu haberi gösterme
+                        matchesCountryFilter = false;
+                    }
+
+                    return matchesQuery && matchesCategory && matchesDateRange && matchesCountryFilter;
+                });
+
+                if (sortOrder === 'newest') {
+                    currentFilteredAndSortedNews.sort((a, b) => b.timestamp - a.timestamp); 
+                } else if (sortOrder === 'oldest') {
+                    currentFilteredAndSortedNews.sort((a, b) => a.timestamp - b.timestamp); 
+                }
+                newsPageIndex = 0; 
+                displayedNewsData = []; 
+                newsContainer.innerHTML = ''; 
+            }
+            
+            const startIndex = newsPageIndex * newsBatchSize;
+            const batchToAdd = currentFilteredAndSortedNews.slice(startIndex, startIndex + newsBatchSize);
+            
+            displayedNewsData = displayedNewsData.concat(batchToAdd);
+
+
+            if (displayedNewsData.length > 0) {
+                loadingMessage.classList.add('hidden'); 
+                
+                batchToAdd.forEach(newsItem => {
+                    const newsCard = document.createElement('div');
+                    newsCard.className = 'news-card bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col justify-between';
+                    
+                    newsCard.innerHTML = `
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800 mb-2">${newsItem.title}</h3>
+                            <p class="text-sm text-gray-600 mb-3">${newsItem.snippet}</p>
+                        </div>
+                        <div>
+                            <div class="flex justify-between items-center text-xs text-gray-500 mb-2">
+                                <span>Kaynak: ${newsItem.source_title || 'Bilinmiyor'}</span>
+                                <span>${newsItem.publication_time || ''}</span>
+                            </div>
+                            <a href="${newsItem.url}" target="_blank" class="inline-block mt-auto text-blue-600 hover:text-blue-800 font-medium text-sm">Devamını Oku &rarr;</a>
+                        </div>
+                    `;
+                    
+                    const summarizeButton = document.createElement('button');
+                    summarizeButton.className = 'summarize-button mt-2 w-full px-4 py-2 bg-purple-600 text-white font-semibold rounded-md shadow-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2';
+                    summarizeButton.textContent = 'Özetle ✨';
+                    summarizeButton.dataset.title = newsItem.title;
+                    summarizeButton.dataset.snippet = newsItem.snippet;
+
+                    summarizeButton.addEventListener('click', (event) => {
+                        const title = event.target.dataset.title;
+                        const snippet = event.target.dataset.snippet;
+                        openSummaryModal(title, snippet);
+                    });
+
+                    newsCard.querySelector('div:last-child').appendChild(summarizeButton);
+                    newsContainer.appendChild(newsCard);
+                });
+
+                if (displayedNewsData.length < currentFilteredAndSortedNews.length) { 
+                    loadMoreButtonWrapper.classList.remove('hidden');
+                } else {
+                    loadMoreButtonWrapper.classList.add('hidden');
+                }
+
+            } else {
+                loadingMessage.textContent = 'Aradığınız kriterlere uygun haber bulunamadı.'; 
+                loadingMessage.classList.remove('hidden');
+                loadMoreButtonWrapper.classList.add('hidden'); 
+            }
+
+            // İşlem bittiğinde butonları etkinleştir ve spinner'ları gizle
+            newsSearchButton.disabled = false;
+            newsRefreshButton.disabled = false;
+            loadMoreButton.disabled = false;
+            newsCategorySelect.disabled = false;
+            newsDateRangeSelect.disabled = false;
+            newsSortSelect.disabled = false;
+        }
+
+        // DOM içeriği tamamen yüklendiğinde ve ayrıştırıldığında bu fonksiyonu çalıştır.
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof L === 'undefined') {
+                console.error("Leaflet kütüphanesi yüklenemedi. 'L' nesnesi tanımlı değil.");
+                const mapDiv = document.getElementById('mapid');
+                if (mapDiv) {
+                    mapDiv.innerHTML = '<p class="text-center text-red-600 text-lg">Harita yüklenirken bir sorun oluştu. Lütfen konsolu kontrol edin.</p>';
+                }
+                return; 
+            } else {
+                console.log("Leaflet kütüphanesi başarıyla yüklendi.");
+            }
+
+            try {
+                map = L.map('mapid').setView([0, 0], 2); 
+
+                const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                });
+
+                const esriWorldImagery = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                });
+
+                osmLayer.addTo(map);
+
+                fetch('https://raw.githubusercontent.com/datasets/geo-countries/main/data/countries.geojson')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`GeoJSON verileri yüklenirken HTTP hatası oluştu! Durum: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(geoJsonData => {
+                        countriesGeoJsonLayer = L.geoJSON(geoJsonData, {
+                            style: defaultCountryStyle,
+                            onEachFeature: function(feature, layer) {
+                                let countryName = feature.properties.name || 'Bilinmeyen Ülke';
+                                let populationInfo = 'Nüfus bilgisi mevcut değil.'; 
+                                if (feature.properties.pop_est && typeof feature.properties.pop_est === 'number') { 
+                                    populationInfo = `Nüfus: Yaklaşık ${Math.round(feature.properties.pop_est / 1000000).toLocaleString('tr-TR')} Milyon`;
+                                } else if (feature.properties.pop_est === 0) {
+                                    populationInfo = `Nüfus: Yok (0)`;
+                                }
+                                let continentInfo = 'Kıta: Bilgi mevcut değil.'; 
+
+                                layer.bindPopup(`<b>${countryName}</b><br>${populationInfo}<br>${continentInfo}`);
+
+                                layer.on({
+                                    mouseover: function(e) {
+                                        e.target.setStyle({
+                                            weight: 2,
+                                            color: '#666',
+                                            fillOpacity: 0.7 
+                                        });
+                                    },
+                                    mouseout: function(e) {
+                                        if (e.target !== highlightedCountryLayer) { 
+                                            e.target.setStyle(defaultCountryStyle);
+                                        }
+                                    },
+                                    click: function(e) {
+                                        if (highlightedCountryLayer) {
+                                            highlightedCountryLayer.setStyle(defaultCountryStyle);
+                                        }
+                                        e.target.setStyle(highlightStyle);
+                                        highlightedCountryLayer = e.target;
+                                        map.fitBounds(e.target.getBounds());
+                                        // Tıklanan ülkenin detaylarını göster
+                                        searchCountryOnMap(countryName); // Tıklanan ülkeyi arama kutusuna yazdır ve göster
+                                    }
+                                });
+                            }
+                        }).addTo(map); 
+                        console.log("GeoJSON ülkeleri haritaya eklendi.");
+                        layerControl.addOverlay(countriesGeoJsonLayer, "Ülkeler");
+                    })
+                    .catch(error => {
+                        console.error("GeoJSON verileri yüklenirken hata oluştu:", error);
+                        const mapDiv = document.getElementById('mapid');
+                        if (mapDiv) {
+                            mapDiv.innerHTML = `<p class="text-center text-red-600 text-lg">Ülke haritası verileri yüklenirken bir sorun oluştu: ${error.message}. Lütfen konsolu kontrol edin.</p>`;
+                        }
+                    });
+
+                const tensionZonesData = [
+                    { name: 'Tahran Çevresi (İran)', coords: [35.6892, 51.3890], radius: 100000, color: 'red', info: 'İran\'ın başkenti çevresinde temsili gerilim bölgesi.' },
+                    { name: 'Şam Çevresi (Suriye)', coords: [33.5130, 36.2917], radius: 70000, color: 'orange', info: 'Suriye\'nin başkenti çevresinde temsili gerilim bölgesi.' },
+                    { name: 'Gaza Şeridi Yakınları (Temsili)', coords: [31.5, 34.46], radius: 50000, color: 'darkred', info: 'Gaza Şeridi ve çevresi için temsili gerilim bölgesi.' },
+                    { name: 'Ukrayna-Rusya Savaşı (Temsili)', coords: [49.0, 32.0], radius: 300000, color: 'purple', info: 'Doğu Avrupa\'daki Ukrayna ve Rusya arasındaki çatışmayı temsil eden geniş bölge.' },
+                    { name: 'Keşmir Bölgesi (Temsili)', coords: [34.0, 76.0], radius: 150000, color: 'brown', info: 'Hindistan ve Pakistan arasındaki Keşmir bölgesini temsil eden gerilim bölgesi.' },
+                    { name: 'Güney Çin Denizi (Temsili)', coords: [10.0, 115.0], radius: 400000, color: 'darkgreen', info: 'Çeşitli ülkelerin hak iddialarının olduğu Güney Çin Denizi\'ndeki temsili gerilim bölgesi.' },
+                    { name: 'Kore Yarımadası (Temsili)', coords: [38.0, 127.5], radius: 200000, color: 'blue', info: 'Kuzey ve Güney Kore arasındaki gerilimi temsil eden bölge.' }
+                ];
+                
+                const tensionZonesLayerGroup = L.layerGroup().addTo(map);
+
+                tensionZonesData.forEach(zone => {
+                    const circle = L.circle(zone.coords, {
+                        color: zone.color,
+                        weight: 1, 
+                        fillColor: zone.color,
+                        fillOpacity: 0.4, 
+                        radius: zone.radius 
+                    })
+                    .bindPopup(`<b>${zone.name}</b><br>${zone.info}<br><br><span style="font-size: 0.8em; color: #666;">Bu alan gerçek çatışma verisi içermez, sadece görsel bir temsildir.</span>`);
+                    
+                    circle.on({
+                        mouseover: function(e) {
+                            e.target.setStyle({
+                                weight: 3, 
+                                opacity: 1, 
+                                fillOpacity: 0.7 
+                            });
+                        },
+                        mouseout: function(e) {
+                            e.target.setStyle({
+                                weight: 1,
+                                opacity: 1,
+                                fillOpacity: 0.4 
+                            });
+                        }
+                    });
+                    tensionZonesLayerGroup.addLayer(circle); 
+                });
+
+                const autonomousRegionsData = [
+                    { name: 'Irak Kürdistan Bölgesel Yönetimi', coords: [36.1915, 43.9926], info: 'Irak\'ta federal bir bölge.<br>Kendi yönetimi vardır.' },
+                    { name: 'Katalonya (İspanya)', coords: [41.8205, 1.7820], info: 'İspanya\'da özerk bir topluluk.<br>Belirgin bir kültürel ve dilsel kimliğe sahiptir.' },
+                    { name: 'Grönland (Danimarka)', coords: [71.7069, -42.6043], info: 'Danimarka Krallığı içinde geniş özerkliğe sahip bir bölge.<br>Dünyanın en büyük adasıdır.' },
+                    { name: 'Tibet (Çin)', coords: [31.6927, 88.0822], info: 'Çin Halk Cumhuriyeti\'nde bir özerk bölge.<br>Benzersiz kültürel ve dini mirasıyla bilinir.' }
+                ];
+
+                const autonomousRegionIcon = L.divIcon({
+                    className: 'custom-autonomous-icon',
+                    html: '<div style="background-color: #3cb371; width: 15px; height: 15px; border-radius: 50%; border: 2px solid #2e8b57;"></div>',
+                    iconSize: [20, 20],
+                    iconAnchor: [10, 10], 
+                    popupAnchor: [0, -10] 
+                });
+
+                const autonomousRegionsLayerGroup = L.layerGroup().addTo(map);
+
+                autonomousRegionsData.forEach(region => {
+                    const marker = L.marker(region.coords, { icon: autonomousRegionIcon })
+                        .bindPopup(`<b>${region.name}</b><br>${region.info}<br><br><span style="font-size: 0.8em; color: #666;">Bu, temsili bir özerk bölge gösterimidir.</span>`);
+                    
+                    autonomousRegionsLayerGroup.addLayer(marker);
+                });
+
+                const baseMaps = {
+                    "OpenStreetMap": osmLayer,
+                    "Esri World Imagery": esriWorldImagery 
+                };
+
+                const overlayMaps = {
+                    "Temsili Gerilim Bölgeleri": tensionZonesLayerGroup,
+                    "Temsili Özerk Bölgeler": autonomousRegionsLayerGroup
+                };
+
+                const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+                const legend = L.control({position: 'bottomright'});
+
+                legend.onAdd = function (map) {
+                    const div = L.DomUtil.create('div', 'info legend');
+                    const colors = ['red', 'orange', 'darkred', 'purple', 'brown', 'darkgreen', 'blue', '#3cb371'];
+                    const labels = ['Tahran Çevresi', 'Şam Çevresi', 'Gaza Şeridi Yakınları', 'Ukrayna-Rusya Savaşı', 'Keşmir Bölgesi', 'Güney Çin Denizi', 'Kore Yarımadası', 'Özerk Bölgeler'];
+
+                    div.innerHTML = '<h4>Harita Açıklaması</h4>';
+                    for (let i = 0; i < colors.length; i++) {
+                        if (labels[i] === 'Özerk Bölgeler') {
+                            div.innerHTML += '<i style="background:' + colors[i] + '; border-radius: 50%; border: 2px solid #2e8b57;"></i> ' + labels[i] + '<br>';
+                        } else {
+                            div.innerHTML += '<i style="background:' + colors[i] + '; border-radius: 50%;"></i> ' + labels[i] + '<br>';
+                        }
+                    }
+                    return div;
+                };
+
+                legend.addTo(map);
+
+                console.log("Harita başarıyla başlatıldı, temsili gerilim bölgeleri, özerk bölgeler, GeoJSON katmanı, katman kontrolü ve lejant eklendi.");
+            } catch (error) {
+                console.error("Harita başlatılırken beklenmeyen bir hata oluştu:", error);
+                const mapDiv = document.getElementById('mapid');
+                if (mapDiv) {
+                    mapDiv.innerHTML = `<p class="text-center text-red-600 text-lg">Harita yüklenirken beklenmeyen bir hata oluştu: ${error.message}. Lütfen konsolu kontrol edin.</p>`;
+                }
+            }
+
+            const goToTopButton = document.getElementById('go-to-top-button');
+
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 300) { 
+                    goToTopButton.classList.remove('hidden');
+                    goToTopButton.style.opacity = '1';
+                } else {
+                    goToTopButton.style.opacity = '0';
+                    setTimeout(() => { 
+                        goToTopButton.classList.add('hidden');
+                    }, 300); 
+                }
+            });
+
+            goToTopButton.addEventListener('click', () => {
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth' 
+                });
+            });
+
+            const summaryModalOverlay = document.getElementById('summary-modal-overlay');
+            const summaryContent = document.getElementById('summary-content');
+            const summaryLoading = document.getElementById('summary-loading');
+            const closeSummaryModalButton = document.getElementById('close-summary-modal');
+
+            async function openSummaryModal(title, snippet) {
+                summaryContent.innerHTML = ''; 
+                summaryModalOverlay.classList.add('open');
+                summaryLoading.classList.remove('hidden'); 
+
+                try {
+                    const prompt = `Lütfen aşağıdaki haber başlığını ve kısa açıklamasını özetle ve anahtar noktalarını belirt: Başlık: "${title}". Açıklama: "${snippet}". Özet 2-3 cümleyi geçmesin.`;
+                    
+                    await new Promise(resolve => setTimeout(resolve, 1500)); 
+
+                    let dynamicSummary = `"${title}" haberi, "${snippet.split('.')[0]}." ifadesiyle öne çıkıyor. `;
+                    if (title.toLowerCase().includes("iklim")) {
+                        dynamicSummary += "Küresel iklim değişikliğinin ciddiyetini ve acil eylem ihtiyacını vurgulamaktadır.";
+                    } else if (title.toLowerCase().includes("ekonomi") || title.toLowerCase().includes("enflasyon")) {
+                        dynamicSummary += "Ekonomik dalgalanmaların ve enflasyonun dünya genelindeki etkilerini detaylandırmaktadır.";
+                    } else if (title.toLowerCase().includes("yapay zeka") || title.toLowerCase().includes("teknoloji") || title.toLowerCase().includes("metaverse")) {
+                        dynamicSummary += "Yapay zeka ve yeni teknolojilerin iş piyasaları ve toplumsal değişim üzerindeki potansiyelini incelemektedir.";
+                    } else if (title.toLowerCase().includes("savaş") || title.toLowerCase().includes("gerilim") || title.toLowerCase().includes("jeopolitik")) {
+                        dynamicSummary += "Bölgesel veya küresel çatışmaların ve jeopolitik gerilimlerin son durumunu özetlemektedir.";
+                    } else {
+                        dynamicSummary += "Bu haber, dünya gündemindeki genel gelişmeleri ve ilgili önemli noktaları ele almaktadır.";
+                    }
+
+                    summaryContent.innerHTML = dynamicSummary;
+                    summaryLoading.classList.add('hidden'); 
+
+                } catch (error) {
+                    console.error("Özet oluşturulurken bir hata oluştu:", error);
+                    summaryContent.innerHTML = '<p class="text-red-500">Özet oluşturulurken bir hata oluştu. Lütfen tekrar deneyin.</p>';
+                    summaryLoading.classList.add('hidden');
+                }
+            }
+
+            function closeSummaryModal() {
+                summaryModalOverlay.classList.remove('open');
+            }
+
+            closeSummaryModalButton.addEventListener('click', closeSummaryModal);
+            summaryModalOverlay.addEventListener('click', (event) => {
+                if (event.target === summaryModalOverlay) {
+                    closeSummaryModal();
+                }
+            });
+
+            const countrySearchInput = document.getElementById('country-search-input');
+            const countrySearchButton = document.getElementById('country-search-button');
+            const clearCountryHighlightButton = document.getElementById('clear-country-highlight');
+            const countryInfoDisplay = document.getElementById('country-info-display');
+            const countrySearchSpinner = document.getElementById('country-search-spinner');
+
+            // Kullanıcı konum butonları ve spinner'ları
+            const locateMeButton = document.getElementById('locate-me-button');
+            const locateMeSpinner = document.getElementById('locate-me-spinner');
+            let userLocationMarkerLayer = null; // Kullanıcı konum marker'ı için
+
+            async function searchCountryOnMap(countryNameInput) {
+                const searchTerm = countryNameInput ? countryNameInput.trim().toLowerCase() : countrySearchInput.value.trim().toLowerCase();
+                
+                if (!searchTerm) {
+                    showMessage('Hata', 'Lütfen bir ülke adı girin.');
+                    countryInfoDisplay.classList.add('hidden');
+                    return;
+                }
+
+                countrySearchSpinner.classList.add('active'); 
+                countrySearchButton.disabled = true; 
+                locateMeButton.disabled = true; // Diğer harita butonlarını da devre dışı bırak
+
+                if (highlightedCountryLayer) {
+                    highlightedCountryLayer.setStyle(defaultCountryStyle);
+                    highlightedCountryLayer = null;
+                }
+                if (countryMarker) {
+                    map.removeLayer(countryMarker);
+                    countryMarker = null;
+                }
+                countryInfoDisplay.classList.add('hidden'); 
+                countryInfoDisplay.innerHTML = ''; 
+
+                try {
+                    const response = await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(searchTerm)}?fullText=true`);
+                    if (!response.ok) {
+                        throw new Error('Ülke bulunamadı veya API hatası.');
+                    }
+                    const data = await response.json();
+                    const country = data[0]; 
+
+                    let geoJsonFound = false;
+                    if (countriesGeoJsonLayer) {
+                        countriesGeoJsonLayer.eachLayer(function(layer) {
+                            const geoJsonCountryName = layer.feature.properties.name;
+                            if (geoJsonCountryName && (geoJsonCountryName.toLowerCase() === searchTerm || country.name.common.toLowerCase() === geoJsonCountryName.toLowerCase())) {
+                                layer.setStyle(highlightStyle);
+                                highlightedCountryLayer = layer;
+                                map.fitBounds(layer.getBounds()); 
+                                geoJsonFound = true;
+                                return; 
+                            }
+                        });
+                    }
+
+                    if (!geoJsonFound && country.latlng && country.latlng.length === 2) {
+                        const latlng = country.latlng;
+                        countryMarker = L.marker([latlng[0], latlng[1]])
+                            .addTo(map)
+                            .bindPopup(`<b>${country.name.common}</b>`)
+                            .openPopup();
+                        map.setView([latlng[0], latlng[1]], 5); 
+                    } else if (!geoJsonFound) {
+                        map.setView([0, 0], 2); 
+                        console.warn("Ülke için harita üzerinde konum bilgisi bulunamadı.");
+                    }
+                    // Ülke bilgi kutusunun içeriği güncellenirken metin renkleri de ayarlandı
+                    countryInfoDisplay.innerHTML = `
+                        <p class="font-semibold text-gray-800 mb-2 dark:text-gray-100">Bilgi: ${country.name.common}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Resmi Adı:</strong> ${country.name.official}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Başkent:</strong> ${country.capital ? country.capital.join(', ') : 'N/A'}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Bölge:</strong> ${country.region || 'N/A'}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Nüfus:</strong> ${country.population ? country.population.toLocaleString('tr-TR') : 'N/A'}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Yüzölçümü:</strong> ${country.area ? country.area.toLocaleString('tr-TR') : 'N/A'} km²</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Para Birimleri:</strong> ${Object.values(country.currencies || {}).map(c => `${c.name} (${c.symbol})`).join(', ') || 'N/A'}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Diller:</strong> ${Object.values(country.languages || {}).join(', ') || 'N/A'}</p>
+                        <p class="text-gray-600 dark:text-gray-300"><strong>Bayrak:</strong> <img src="${country.flags.png}" alt="${country.name.common} Bayrağı" class="inline-block h-6 ml-2 rounded shadow"></p>
+                    `;
+                    countryInfoDisplay.dataset.countryName = country.name.common; // Favori işlemi için ülke adını sakla (şimdilik tutuldu)
+                    countryInfoDisplay.classList.remove('hidden'); 
+
+                    saveLastSearch(country.name.common);
+
+                    // Ülke seçildiğinde haberleri bu ülkeye göre filtrele
+                    currentCountryNewsFilter = country.name.common;
+                    document.getElementById('news-search-input').value = country.name.common; // Haber arama kutusuna ülke adını yaz
+                    // Haber filtrelerini varsayılan hallerine getirip ülke filtresini uygula
+                    document.getElementById('news-category-select').value = 'all';
+                    document.getElementById('news-date-range-select').value = 'all';
+                    document.getElementById('news-sort-select').value = 'newest';
+                    displayNews(country.name.common, 'newest', 'all', 'all', currentCountryNewsFilter, false);
+
+                } catch (error) {
+                    console.error("Ülke verisi çekilirken hata:", error);
+                    showMessage('Hata', `Ülke bulunamadı: "${searchTerm}". Lütfen tam adı veya yaygın kullanılan adını deneyin. Hata: ${error.message}`);
+                    countryInfoDisplay.classList.add('hidden'); 
+                    if (highlightedCountryLayer) {
+                        highlightedCountryLayer.setStyle(defaultCountryStyle);
+                        highlightedCountryLayer = null;
+                    }
+                    if (countryMarker) {
+                        map.removeLayer(countryMarker);
+                        countryMarker = null;
+                    }
+                    map.setView([0, 0], 2);
+                    currentCountryNewsFilter = null; // Hata durumunda ülke filtresini temizle
+                } finally {
+                    countrySearchSpinner.classList.remove('active'); 
+                    countrySearchButton.disabled = false; 
+                    locateMeButton.disabled = false;
+                }
+            }
+
+
+            countrySearchButton.addEventListener('click', () => searchCountryOnMap());
+            countrySearchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    searchCountryOnMap();
+                }
+            });
+
+            clearCountryHighlightButton.addEventListener('click', () => {
+                if (highlightedCountryLayer) {
+                    highlightedCountryLayer.setStyle(defaultCountryStyle);
+                    highlightedCountryLayer = null;
+                }
+                if (countryMarker) {
+                    map.removeLayer(countryMarker);
+                    countryMarker = null;
+                }
+                if (userLocationMarker) { // Kullanıcı konum marker'ını da temizle
+                    map.removeLayer(userLocationMarker);
+                    userLocationMarker = null;
+                }
+                countrySearchInput.value = ''; 
+                countryInfoDisplay.classList.add('hidden'); 
+                countryInfoDisplay.innerHTML = ''; 
+                map.setView([0, 0], 2);
+                currentCountryNewsFilter = null; // Ülke filtresini temizle
+                document.getElementById('news-search-input').value = ''; // Haber arama kutusunu temizle
+                document.getElementById('news-category-select').value = 'all';
+                document.getElementById('news-date-range-select').value = 'all';
+                document.getElementById('news-sort-select').value = 'newest';
+                displayNews('', 'newest', 'all', 'all', null, false); // Haberleri tüm filtrelere göre yeniden yükle
+            });
+
+            // Kullanıcı Konumunu Bulma Fonksiyonu
+            locateMeButton.addEventListener('click', () => {
+                locateMeSpinner.classList.add('active');
+                locateMeButton.disabled = true;
+                countrySearchButton.disabled = true; // Diğer harita butonlarını da devre dışı bırak
+
+                if (userLocationMarker) { // Önceki konum işaretçisini kaldır
+                    map.removeLayer(userLocationMarker);
+                }
+
+                if (!navigator.geolocation) {
+                    showMessage('Hata', 'Tarayıcınız konum servislerini desteklemiyor.');
+                    locateMeSpinner.classList.remove('active');
+                    locateMeButton.disabled = false;
+                    countrySearchButton.disabled = false;
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(position => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+
+                    userLocationMarker = L.marker([lat, lon])
+                        .addTo(map)
+                        .bindPopup("Şu Anki Konumunuz")
+                        .openPopup();
+                    map.setView([lat, lon], 10); // Daha yakın bir zoom seviyesi
+
+                    locateMeSpinner.classList.remove('active');
+                    locateMeButton.disabled = false;
+                    countrySearchButton.disabled = false;
+                }, error => {
+                    let errorMessage = 'Konumunuz alınamadı.';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = 'Konum erişimi reddedildi. Lütfen tarayıcı ayarlarınızdan izin verin.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = 'Konum bilgisi mevcut değil.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = 'Konum isteği zaman aşımına uğradı.';
+                            break;
+                    }
+                    showMessage('Konum Hatası', errorMessage);
+                    locateMeSpinner.classList.remove('active');
+                    locateMeButton.disabled = false;
+                    countrySearchButton.disabled = false;
+                });
+            });
+
+            // İlk haber yüklemesi
+            displayNews('', 'newest', 'all', 'all', null, false);
+
+            document.getElementById('news-search-button').addEventListener('click', () => {
+                displayNews(document.getElementById('news-search-input').value, 
+                            document.getElementById('news-sort-select').value, 
+                            document.getElementById('news-category-select').value, 
+                            document.getElementById('news-date-range-select').value,
+                            currentCountryNewsFilter, 
+                            false); 
+            });
+
+            document.getElementById('news-search-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    displayNews(document.getElementById('news-search-input').value, 
+                                document.getElementById('news-sort-select').value, 
+                                document.getElementById('news-category-select').value, 
+                                document.getElementById('news-date-range-select').value,
+                                currentCountryNewsFilter, 
+                                false); 
+                }
+            });
+
+            document.getElementById('news-refresh-button').addEventListener('click', () => {
+                document.getElementById('news-search-input').value = ''; 
+                document.getElementById('news-sort-select').value = 'newest'; 
+                document.getElementById('news-category-select').value = 'all'; 
+                document.getElementById('news-date-range-select').value = 'all'; // Tarih aralığı sıfırlandı
+                currentCountryNewsFilter = null; // Ülke filtresini temizle
+                displayNews('', 'newest', 'all', 'all', null, false); 
+            });
+
+            document.getElementById('news-sort-select').addEventListener('change', (e) => {
+                displayNews(document.getElementById('news-search-input').value, 
+                            e.target.value, 
+                            document.getElementById('news-category-select').value, 
+                            document.getElementById('news-date-range-select').value,
+                            currentCountryNewsFilter, 
+                            false); 
+            });
+
+            // Kategori seçimi değiştiğinde haberleri filtrele
+            document.getElementById('news-category-select').addEventListener('change', (e) => {
+                displayNews(document.getElementById('news-search-input').value, 
+                            document.getElementById('news-sort-select').value, 
+                            e.target.value, 
+                            document.getElementById('news-date-range-select').value,
+                            currentCountryNewsFilter, 
+                            false); 
+            });
+
+            // Tarih aralığı seçimi değiştiğinde haberleri filtrele
+            document.getElementById('news-date-range-select').addEventListener('change', (e) => {
+                displayNews(document.getElementById('news-search-input').value, 
+                            document.getElementById('news-sort-select').value, 
+                            document.getElementById('news-category-select').value, 
+                            e.target.value, // Yeni tarih aralığı değeri
+                            currentCountryNewsFilter, 
+                            false); 
+            });
+
+
+            document.getElementById('load-more-news-button').addEventListener('click', () => {
+                newsPageIndex++; 
+                displayNews(document.getElementById('news-search-input').value, 
+                            document.getElementById('news-sort-select').value, 
+                            document.getElementById('news-category-select').value, 
+                            document.getElementById('news-date-range-select').value,
+                            currentCountryNewsFilter, 
+                            true); 
+            });
+
+            const darkModeToggle = document.getElementById('dark-mode-toggle');
+            darkModeToggle.addEventListener('change', () => {
+                document.body.classList.toggle('dark-mode', darkModeToggle.checked);
+            });
+
+            initializeFirebase();
+        });
+    </script>
+</body>
+</html>
